@@ -9,7 +9,6 @@ def elevation_spectrum(eta, sample_rate, nnft, window='hann',
     detrend=True, noverlap=None):
     """
     Calculates the wave energy spectrum from wave elevation time-series
-
     Parameters
     ------------
     eta: pandas DataFrame
@@ -27,7 +26,6 @@ def elevation_spectrum(eta, sample_rate, nnft, window='hann',
     noverlap: int, optional
         Number of points to overlap between segments. If None,
         ``noverlap = nperseg / 2``.  Defaults to None.
-
     Returns
     ---------
     S: pandas DataFrame
@@ -63,7 +61,6 @@ def elevation_spectrum(eta, sample_rate, nnft, window='hann',
 def pierson_moskowitz_spectrum(f, Tp, Hs):
     """
     Calculates Pierson-Moskowitz Spectrum from IEC TS 62600-2 ED2 Annex C.2 (2019)
-
     Parameters
     ------------
     f: numpy array
@@ -72,12 +69,10 @@ def pierson_moskowitz_spectrum(f, Tp, Hs):
         Peak period [s]
     Hs: float/int
         Significant wave height [m]
-
     Returns
     ---------
     S: pandas DataFrame
         Spectral density [m^2/Hz] indexed frequency [Hz]
-
     """
     try:
         f = np.array(f)
@@ -101,7 +96,6 @@ def pierson_moskowitz_spectrum(f, Tp, Hs):
 def jonswap_spectrum(f, Tp, Hs, gamma=None):
     """
     Calculates JONSWAP Spectrum from IEC TS 62600-2 ED2 Annex C.2 (2019)
-
     Parameters
     ------------
     f: numpy array
@@ -112,7 +106,6 @@ def jonswap_spectrum(f, Tp, Hs, gamma=None):
         Significant wave height [m]
     gamma: float (optional)
         Gamma
-
     Returns
     ---------
     S: pandas DataFrame
@@ -165,7 +158,6 @@ def jonswap_spectrum(f, Tp, Hs, gamma=None):
 def surface_elevation(S, time_index, seed=None, frequency_bins=None, phases=None):
     """
     Calculates wave elevation time-series from spectrum
-
     Parameters
     ------------
     S: pandas DataFrame
@@ -178,12 +170,10 @@ def surface_elevation(S, time_index, seed=None, frequency_bins=None, phases=None
     phases: numpy array or pandas DataFrame (optional)
         Explicit phases for frequency components (overrides seed)
         for example, phases = np.random.rand(len(S)) * 2 * np.pi
-
     Returns
     ---------
     eta: pandas DataFrame
         Wave surface elevation [m] indexed by time [s]
-
     """
     time_index = np.array(time_index)
     assert isinstance(S, pd.DataFrame), 'S must be of type pd.DataFrame'
@@ -248,7 +238,6 @@ def surface_elevation(S, time_index, seed=None, frequency_bins=None, phases=None
 def frequency_moment(S, N, frequency_bins=None):
     """
     Calculates the Nth frequency moment of the spectrum
-
     Parameters
     -----------
     S: pandas DataFrame
@@ -257,7 +246,6 @@ def frequency_moment(S, N, frequency_bins=None):
         Moment (0 for 0th, 1 for 1st ....)
     frequency_bins: numpy array or pandas Series (optional)
         Bin widths for frequency of S. Required for unevenly sized bins
-
     Returns
     -------
     m: pandas DataFrame
@@ -295,14 +283,12 @@ def frequency_moment(S, N, frequency_bins=None):
 def significant_wave_height(S, frequency_bins=None):
     """
     Calculates wave height from spectra
-
     Parameters
     ------------
     S: pandas DataFrame
         Spectral density [m^2/Hz] indexed by frequency [Hz]
     frequency_bins: numpy array or pandas Series (optional)
         Bin widths for frequency of S. Required for unevenly sized bins
-
     Returns
     ---------
     Hm0: pandas DataFrame
@@ -321,14 +307,12 @@ def significant_wave_height(S, frequency_bins=None):
 def average_zero_crossing_period(S,frequency_bins=None):
     """
     Calculates wave average zero crossing period from spectra
-
     Parameters
     ------------
     S: pandas DataFrame
         Spectral density [m^2/Hz] indexed by frequency [Hz]
     frequency_bins: numpy array or pandas Series (optional)
         Bin widths for frequency of S. Required for unevenly sized bins
-
     Returns
     ---------
     Tz: pandas DataFrame
@@ -349,19 +333,16 @@ def average_zero_crossing_period(S,frequency_bins=None):
 def average_crest_period(S,frequency_bins=None):
     """
     Calculates wave average crest period from spectra
-
     Parameters
     ------------
     S: pandas DataFrame
         Spectral density [m^2/Hz] indexed by frequency [Hz]
     frequency_bins: numpy array or pandas Series (optional)
         Bin widths for frequency of S. Required for unevenly sized bins
-
     Returns
     ---------
     Tavg: pandas DataFrame
         Average wave period [s] indexed by S.columns
-
     """
     assert isinstance(S, pd.DataFrame), 'S must be of type pd.DataFrame'
 
@@ -377,14 +358,12 @@ def average_crest_period(S,frequency_bins=None):
 def average_wave_period(S,frequency_bins=None):
     """
     Calculates mean wave period from spectra
-
     Parameters
     ------------
     S: pandas DataFrame
         Spectral density [m^2/Hz] indexed by frequency [Hz]
     frequency_bins: numpy array or pandas Series (optional)
         Bin widths for frequency of S. Required for unevenly sized bins
-
     Returns
     ---------
     Tm: pandas DataFrame
@@ -404,12 +383,10 @@ def average_wave_period(S,frequency_bins=None):
 def peak_period(S):
     """
     Calculates wave peak period from spectra
-
     Parameters
     ------------
     S: pandas DataFrame
         Spectral density [m^2/Hz] indexed by frequency [Hz]
-
     Returns
     ---------
     Tp: pandas DataFrame
@@ -429,14 +406,12 @@ def peak_period(S):
 def energy_period(S,frequency_bins=None):
     """
     Calculates wave energy period from spectra
-
     Parameters
     ------------
     S: pandas DataFrame
         Spectral density [m^2/Hz] indexed by frequency [Hz]
     frequency_bins: numpy array or pandas Series (optional)
         Bin widths for frequency of S. Required for unevenly sized bins
-
     Returns
     ---------
     Te: pandas DataFrame
@@ -462,14 +437,12 @@ def energy_period(S,frequency_bins=None):
 def spectral_bandwidth(S,frequency_bins=None):
     """
     Calculates bandwidth from spectra
-
     Parameters
     ------------
     S: pandas DataFrame
         Spectral density [m^2/Hz] indexed by frequency [Hz]
     frequency_bins: numpy array or pandas Series (optional)
         Bin widths for frequency of S. Required for unevenly sized bins
-
     Returns
     ---------
     e: pandas DataFrame
@@ -490,14 +463,12 @@ def spectral_bandwidth(S,frequency_bins=None):
 def spectral_width(S,frequency_bins=None):
     """
     Calculates wave spectral width from spectra
-
     Parameters
     ------------
     S: pandas DataFrame
         Spectral density [m^2/Hz] indexed by frequency [Hz]
     frequency_bins: numpy array or pandas Series (optional)
         Bin widths for frequency of S. Required for unevenly sized bins
-
     Returns
     ---------
     v: pandas DataFrame
@@ -519,7 +490,6 @@ def spectral_width(S,frequency_bins=None):
 def energy_flux(S, h, deep=False, rho=1025, g=9.80665, ratio=2):
     """
     Calculates the omnidirectional wave energy flux of the spectra
-
     Parameters
     -----------
     S: pandas DataFrame or Series
@@ -538,7 +508,6 @@ def energy_flux(S, h, deep=False, rho=1025, g=9.80665, ratio=2):
     ratio: float or int (optional)
         Only applied if depth=False. If h/l > ratio,
         water depth will be set to deep. Default ratio = 2.
-
     Returns
     -------
     J: pandas DataFrame
@@ -594,7 +563,6 @@ def energy_flux(S, h, deep=False, rho=1025, g=9.80665, ratio=2):
 def wave_celerity(k, h, g=9.80665, depth_check=False, ratio=2):
     """
     Calculates wave celerity (group velocity)
-
     Parameters
     ----------
     k: pandas DataFrame or Series
@@ -608,7 +576,6 @@ def wave_celerity(k, h, g=9.80665, depth_check=False, ratio=2):
     ratio: float or int (optional)
         Only applied if depth_check=True. If h/l > ratio,
         water depth will be set to deep. Default ratio = 2
-
     Returns
     -------
     Cg: pandas DataFrame
@@ -660,12 +627,10 @@ def wave_length(k):
     """
     Calculates wave length from wave number
     To compute: 2*pi/wavenumber
-
     Parameters
     -------------
     k: pandas Dataframe
         Wave number [1/m] indexed by frequency
-
     Returns
     ---------
     l: float or array
@@ -688,10 +653,8 @@ def wave_length(k):
 def wave_number(f, h, rho=1025, g=9.80665):
     """
     Calculates wave number
-
     To compute wave number from angular frequency (w), convert w to f before
     using this function (f = w/2*pi)
-
     Parameters
     -----------
     f: numpy array
@@ -702,7 +665,6 @@ def wave_number(f, h, rho=1025, g=9.80665):
         Water density [kg/m^3]
     g: float (optional)
         Gravitational acceleration [m/s^2]
-
     Returns
     -------
     k: pandas DataFrame
@@ -747,12 +709,10 @@ def depth_regime(l, h, ratio=2):
     Deep water: h/l > ratio
     This function exists so sinh in wave celerity doesn't blow
     up to infinity.
-
     P.K. Kundu, I.M. Cohen (2000) suggest h/l >> 1 for deep water (pg 209)
     Same citation as above, they also suggest for 3% accuracy, h/l > 0.28 (pg 210)
     However, since this function allows multiple wavelengths, higher ratio
     numbers are more accurate across varying wavelengths.
-
     Parameters
     ----------
     l: array-like
@@ -761,7 +721,6 @@ def depth_regime(l, h, ratio=2):
         water column depth [m]
     ratio: float or int (optional)
         if h/l > ratio, water depth will be set to deep. Default ratio = 2
-
     Returns
     -------
     depth_reg: boolean or boolean array

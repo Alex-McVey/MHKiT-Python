@@ -1,4 +1,5 @@
 import pandas as pd
+import xarray as xr
 import numpy as np
 from rex import MultiYearWaveX, WaveX
 import sys
@@ -38,10 +39,8 @@ def region_selection(lat_lon):
     else:
         return region[0]
 
-
-
 def request_wpto_point_data(data_type, parameter, lat_lon, years, tree=None, 
-                                 unscale=True, str_decode=True,hsds=True):
+                                 unscale=True, str_decode=True,hsds=True, xarray=False):
     
         """ 
         Returns data from the WPTO wave hindcast hosted on AWS at the specified latitude and longitude point(s), 
@@ -84,6 +83,10 @@ def request_wpto_point_data(data_type, parameter, lat_lon, years, tree=None,
             Boolean flag to use h5pyd to handle .h5 'files' hosted on AWS
             behind HSDS. Setting to False will indicate to look for files on 
             local machine, not AWS. Default = True
+        xarray: bool (optional)
+            If true, returns xarray dataset instead of pandas DataFrame (metadata will 
+            not be returned if true as it will be part of the dataset)
+            Default = False
 
         Returns
         ---------
@@ -149,8 +152,14 @@ def request_wpto_point_data(data_type, parameter, lat_lon, years, tree=None,
                     data = data.rename(columns={c:temp})
 
             meta = rex_waves.meta.loc[col,:]
-            meta = meta.reset_index(drop=True)    
-        return data, meta
+            meta = meta.reset_index(drop=True)  
+
+        if xarray:
+            data = xr.Dataset.from_dataframe(data)
+            data.attrs = meta.to_dict('records')[0]
+            return data
+        else:
+            return data, meta
 
 def request_wpto_directional_spectrum(lat_lon, year, tree=None, 
                                  unscale=True, str_decode=True,hsds=True):

@@ -1,24 +1,25 @@
 from collections import OrderedDict as _OrderedDict
 from collections import defaultdict as _defaultdict
-from io import BytesIO
+from io import StringIO
 import pandas as pd
+import xarray as xr
 import numpy as np
+from datetime import datetime
+import csv
 import requests
 import zlib
-import pandas.errors
-from mhkit.tidal.graphics import plot_rose 
-from mhkit.tidal.graphics import plot_joint_probability_distribution
+from utils import _xarray_dict
 
 
-def read_file(file_name, missing_values=['MM',9999,999,99]):
+def read_file(file_name, xarray=False, missing_values=['MM',9999,999,99]):
     """
     Reads a NDBC wave buoy data file (from https://www.ndbc.noaa.gov).
     
     Realtime and historical data files can be loaded with this function.  
     
     Note: With realtime data, missing data is denoted by "MM".  With historical 
-    data, missing data is denoted using a variable number of 
-    # 9's, depending on the data type (for example: 9999.0 999.0 99.0).
+    data, missing data is denoted using a variable number of 9's, depending on the 
+    data type (for example: 9999.0 999.0 99.0).
     'N/A' is automatically converted to missing data.
     
     Data values are converted to float/int when possible. Column names are 
@@ -29,7 +30,11 @@ def read_file(file_name, missing_values=['MM',9999,999,99]):
     ------------
     file_name: string
         Name of NDBC wave buoy data file
-    
+
+    xarray: bool
+            If true, returns xarray dataset instead of pandas DataFrame (metadata will 
+            not be returned if true as it will be part of the dataset)
+                
     missing_value: list of values
         List of values that denote missing data    
     
@@ -41,8 +46,10 @@ def read_file(file_name, missing_values=['MM',9999,999,99]):
     metadata: dict or None
         Dictionary with {column name: units} key value pairs when the NDBC file  
         contains unit information, otherwise None is returned
+        (If xarray is true, then metadata will simply be a part of the data)
     """
     assert isinstance(file_name, str), 'file_name must be of type str'
+    assert isinstance(xarray, bool), 'xarray must be of type bool'
     assert isinstance(missing_values, list), 'missing_values must be of type list'
     
     # Open file and get header rows
@@ -68,52 +75,65 @@ def read_file(file_name, missing_values=['MM',9999,999,99]):
     # to parse for date
     if header[4] == 'mm':
         parse_vals = header[0:5]
-        date_format = '%Y %m %d %H %M'
         units = units[5:]   #remove date columns from units
+        columns = header[5:]  
     else:
         parse_vals = header[0:4]
-        date_format = '%Y %m %d %H'
         units = units[4:]   #remove date columns from units
-    
-    # If first line is commented, manually feed in column names
-    if header_commented:
-        data = pd.read_csv(file_name, sep='\s+', header=None, names = header,
-                           comment = "#", parse_dates=[parse_vals]) 
-    # If first line is not commented, then the first row can be used as header                        
-    else:
-        data = pd.read_csv(file_name, sep='\s+', header=0,
-                           comment = "#", parse_dates=[parse_vals])
-                             
-    # Convert index to datetime
-    date_column = "_".join(parse_vals)
-    data['Time'] = pd.to_datetime(data[date_column], format=date_format)
-    data.index = data['Time'].values
-    # Remove date columns
-    del data[date_column]
-    del data['Time']
-    
+        columns = header[4:] 
+
+    # Create neutral dictionary of data for xr or pd
+    data_vars = {k:[] for k in header}
+    with open(file_name, newline='') as csvfile:
+        ndbc_reader = csv.reader(csvfile, delimiter=' ')
+        for row in ndbc_reader:
+            if row[0].startswith("#"):
+                continue
+            row = [i for i in row if i]
+            for key, value in zip(header,row):
+                if value in missing_values:
+                    data_vars[key].append(np.nan)
+                else:
+                    try:
+                        data_vars[key].append(float(value))
+                    except ValueError:
+                        data_vars[key].append(value)
+    # Create Time values
+    time = []
+    for i in range(len(data_vars[parse_vals[0]])):
+        dates = []
+        for key in parse_vals:
+            dates.append(data_vars[key][i])
+        time.append(datetime(*map(int, dates)))
+    # Remove the time from the data_vars
+    for key in parse_vals:
+        del data_vars[key]
+
     # If there was a row of units, convert to dictionary
     if units_exist:
-        metadata = {column:unit for column,unit in zip(data.columns,units)}
+        metadata = {column:unit for column,unit in zip(columns,units)}
     else:
         metadata = None
 
-    # Convert columns to numeric data if possible, otherwise leave as string
-    for column in data:
-        data[column] = pd.to_numeric(data[column], errors='ignore')
-        
-    # Convert column names to float if possible (handles frequency headers)
-    # if there is non-numeric name, just leave all as strings.
+    # Convert columns to numeric data if possible, otherwise leave as string    
     try:
-        data.columns = [float(column) for column in data.columns]
+        data_vars = {float(k):v for k,v in data_vars.items()}
     except:
-        data.columns = data.columns
-    
-    # Replace indicated missing values with nan
-    data.replace(missing_values, np.nan, inplace=True)
-    
-    return data, metadata
+        pass
+            
+    # Convert dictionaries to either pandas or xarray
+    if xarray:
+        d = _xarray_dict(data_vars, ("Time",time), metadata)
+        data = xr.Dataset.from_dict(d)  
+        return data       
 
+    else: 
+        # Pandas DataFrame (put time back into data_vars)
+        data_vars["Time"] = time
+        data = pd.DataFrame.from_dict(data_vars)
+        # Set time as index
+        data.set_index("Time",drop=True,inplace=True) 
+        return data, metadata  
 
 def available_data(parameter,
                    buoy_number=None, 
@@ -227,7 +247,7 @@ def _parse_filenames(parameter, filenames):
     buoys['filename'] = filenames  
     return buoys    
         
-def request_data(parameter, filenames, proxy=None):
+def request_data(parameter, filenames, proxy=None, xarray=False):
     '''
     Requests data by filenames and returns a dictionary of DataFrames 
     for each filename passed. If filenames for a single buoy are passed 
@@ -249,6 +269,9 @@ def request_data(parameter, filenames, proxy=None):
     proxy: dict
 	    Proxy dict passed to python requests, 
         (e.g. proxy_dict= {"http": 'http:wwwproxy.yourProxy:80/'})  
+
+    xarray: bool
+        If true returns xarray instead of pandas DataFrame
         
     Returns
     -------
@@ -260,6 +283,7 @@ def request_data(parameter, filenames, proxy=None):
     assert isinstance(parameter, str), 'parameter must be a string'
     assert isinstance(proxy, (dict, type(None))), ('If specified proxy' 
       'must be a dict')
+    assert isinstance(xarray, bool), 'xarray must be of type bool'
     
     supported =_supported_params(parameter)
     if isinstance(filenames,pd.DataFrame):
@@ -282,26 +306,116 @@ def request_data(parameter, filenames, proxy=None):
             else:
                 response = requests.get(file_url, proxies=proxy)
             try: 
-                data = zlib.decompress(response.content, 16+zlib.MAX_WBITS)
-                df = pd.read_csv(BytesIO(data), sep='\s+', low_memory=False)
+                data = zlib.decompress(response.content, 16+zlib.MAX_WBITS).decode()
+                if not data:
+                    raise ValueError
+                temp = data.partition('\n')
+                header = temp[0].split(" ")
+                header = [i for i in header if i]
+                temp = temp[2].partition('\n')
+                units = temp[0].split(" ")
+                units = [i for i in units if i]
+
+                # If first line is commented, remove comment sign #
+                if header[0].startswith("#"):
+                    header[0] = header[0][1:]
+                    
+                # If second line is commented, indicate that units exist
+                if units[0].startswith("#"):
+                    units_exist = True
+                    data = temp[2]
+                else:
+                    units_exist = False
+                    data = "".join(temp)
                 
-                # catch when units are included below the header
-                firstYear = df['MM'][0]
-                if isinstance(firstYear,str) and firstYear == 'mo':
-                    df = pd.read_csv(BytesIO(data), sep='\s+', low_memory=False, skiprows=[1])
+                # Check if the time stamp contains minutes, and create list of column names 
+                # to parse for date
+                if header[4] == 'mm':
+                    parse_vals = header[0:5]
+                    units = units[5:]   #remove date columns from units
+                    columns = header[5:]  
+                else:
+                    parse_vals = header[0:4]
+                    units = units[4:]   #remove date columns from units
+                    columns = header[4:]
+
+                # Create neutral dictionary of data for xr or pd                
+                with StringIO(data) as csvfile:
+                    ndbc_reader = csv.reader(csvfile, delimiter=' ')
+                    num_lines = sum(1 for row in ndbc_reader)
+                    
+                data_vars = {k:np.empty(num_lines) for k in header}
+
+                with StringIO(data) as csvfile:
+                    ndbc_reader = csv.reader(csvfile, delimiter=' ')   
+                    index = 0 
+                    for row in ndbc_reader: 
+                        row = [i for i in row if i]                        
+                        for key, value in zip(header,row):                            
+                            try:
+                                data_vars[key][index] = float(value)
+                            except ValueError:
+                                data_vars[key][index] = value
+                        index += 1
+
+                # Create Time values
+                time = []                
+                for i in range(len(data_vars[parse_vals[0]])):
+                    dates = []
+                    for key in parse_vals:
+                        dates.append(data_vars[key][i])
+                    # For some of the early swden documents the year appears as a 2
+                    # digit number so check and correct for this
+                    if data_vars[parse_vals[0]][0] < 1900:
+                        dates[0] += 1900
+                    time.append(datetime(*map(int, dates)))
+                # Remove the time from the data_vars
+                for key in parse_vals:
+                    del data_vars[key]
+                # Add datetime 
+                data_vars["Time"] = time
+
+                # If there was a row of units, convert to dictionary
+                if units_exist:
+                    units = {column:unit for column,unit in zip(columns,units)}
+                
+
+                # Convert columns to numeric data if possible, otherwise leave as string    
+                try:
+                    data_vars = {float(k):v for k,v in data_vars.items()}
+                except:
+                    pass
+
+                #df = pd.read_csv(BytesIO(data), sep='\s+', low_memory=False)                
+
             except zlib.error: 
                 msg = (f'Issue decompressing the NDBC file {filename}'  
                        f'(id: {buoy_id}, year: {year}). Please request ' 
                        'the data again.')
                 print(msg)
-            except pandas.errors.EmptyDataError: 
+            except ValueError: 
                 msg = (f'The NDBC buoy {buoy_id} for year {year} with ' 
                        f'filename {filename} is empty or missing '     
                         'data. Please omit this file from your data '   
                         'request in the future.')
                 print(msg)
             else:
-                ndbc_data[buoy_id][year] = df    
+                if xarray:
+                    time = data_vars.pop("Time")
+                    # Need to format dictionary for dataset before converting
+                    if units_exist:
+                        metadata = units
+                    else:
+                        metadata = None
+                    d = _xarray_dict(data_vars, ("Time",time), metadata)
+                    ds = xr.Dataset.from_dict(d)
+                    ndbc_data[buoy_id][year] = ds
+                    
+                else:
+                    df = pd.DataFrame.from_dict(data_vars)
+                    # Set time as index
+                    df.set_index("Time",drop=True,inplace=True)
+                    ndbc_data[buoy_id][year] = df    
                              
     if len(ndbc_data) == 1:
         ndbc_data = ndbc_data[buoy_id]
@@ -430,7 +544,6 @@ def dates_to_datetime(parameter, data,
         return date, ndbc_date_cols        
     
     return date
-
     
 def _date_string_to_datetime(df, columns, year_fmt):
     '''
@@ -476,7 +589,7 @@ def parameter_units(parameter=''):
     '''
     Returns an ordered dictionary of NDBC parameters with unit values. 
     If no parameter is passed then an ordered dictionary of all NDBC 
-    parameterz specified unites is returned. If a parameter is specified
+    parameters specified units is returned. If a parameter is specified
     then only the units associated with that parameter are returned. 
     Note that many NDBC paramters report multiple measurements and in 
     that case the returned dictionary will contain the NDBC measurement
@@ -661,7 +774,6 @@ def parameter_units(parameter=''):
         
     return units
 
-
 def _supported_params(parameter):
     '''
     There is a significant number of datasets provided by NDBC. There is
@@ -723,5 +835,4 @@ def _supported_params(parameter):
     'wlevel':	'Tide Current Year Historical Data'	,
     }
 
-    return supported	
-
+    return supported
