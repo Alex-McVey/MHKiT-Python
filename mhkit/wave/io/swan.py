@@ -1,9 +1,9 @@
+from mhkit.utils import _xarray_dict
 from importlib.metadata import metadata
 from scipy.io import loadmat
 from os.path import isfile
 import pandas as pd
 import xarray as xr
-from utils import _xarray_dict
 import numpy as np
 import csv
 import re 

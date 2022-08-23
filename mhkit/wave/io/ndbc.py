@@ -1,6 +1,6 @@
 from collections import OrderedDict as _OrderedDict
 from collections import defaultdict as _defaultdict
-from utils import _xarray_dict
+from mhkit.utils import _xarray_dict
 from datetime import datetime
 from io import StringIO
 import pandas as pd
