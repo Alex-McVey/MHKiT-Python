@@ -302,32 +302,37 @@ def _xarray_dict(data_vars, coord, metadata=None):
 
     Parameters
     ----------
-    data_vars : dictionary
+    data_vars: dictionary
         Dictionary of data to be written
-    coord : tuple
+    coord: tuple
         xarray dimension name, dimension data
-    metadata : dictionary or None
+    metadata: dictionary or None
         Dictionary of units for each data key 
         
     Returns
     -------
-    d : dictionary
+    d: dictionary
         xarray formatted dictionary
     """
     d = {
         "coords": {
-            f"{coord[0]}": {"dims": f"{coord[0]}", "data": coord[1] }},
+            f"{coord[0]}": {"dims": f"{coord[0]}", "data": coord[1] }
+        },
         "attrs":{}, 
         "dims": f"{coord[0]}",
         "data_vars":{}            
     }
     for key in data_vars.keys():
         if metadata is not None:            
-            d["data_vars"][key] = { "dims": f"{coord[0]}",
-                                    "data": data_vars[key],
-                                    "attrs": {"units": metadata[key]}}
+            d["data_vars"][key] = { 
+                "dims": f"{coord[0]}",
+                "data": data_vars[key],
+                "attrs": {"units": metadata[key]}
+            }
         else:
-            d["data_vars"][key] = { "dims": f"{coord[0]}",
-                                    "data": data_vars[key]}
+            d["data_vars"][key] = {
+                 "dims": f"{coord[0]}",
+                 "data": data_vars[key]
+            }
 
     return d

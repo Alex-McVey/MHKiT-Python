@@ -1,14 +1,14 @@
 from collections import OrderedDict as _OrderedDict
 from collections import defaultdict as _defaultdict
+from utils import _xarray_dict
+from datetime import datetime
 from io import StringIO
 import pandas as pd
 import xarray as xr
 import numpy as np
-from datetime import datetime
-import csv
 import requests
 import zlib
-from utils import _xarray_dict
+import csv
 
 
 def read_file(file_name, xarray=False, missing_values=['MM',9999,999,99]):
